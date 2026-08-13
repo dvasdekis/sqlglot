@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import typing as t
+
 from sqlglot import exp
 from sqlglot.parsers.tsql import TSQLParser
 from sqlglot.tokens import TokenType
@@ -147,8 +149,25 @@ class SynapseParser(TSQLParser):
         self._openrowset_pending_schema = False
         return super()._parse_table_hints()
 
-    def _parse_table(self, *args, **kwargs) -> exp.Expr | None:
-        table = super()._parse_table(*args, **kwargs)
+    def _parse_table(
+        self,
+        schema: bool = False,
+        joins: bool = False,
+        alias_tokens: t.Collection[TokenType] | None = None,
+        parse_bracket: bool = False,
+        is_db_reference: bool = False,
+        parse_partition: bool = False,
+        consume_pipe: bool = False,
+    ) -> exp.Expr | None:
+        table = super()._parse_table(
+            schema=schema,
+            joins=joins,
+            alias_tokens=alias_tokens,
+            parse_bracket=parse_bracket,
+            is_db_reference=is_db_reference,
+            parse_partition=parse_partition,
+            consume_pipe=consume_pipe,
+        )
         if not isinstance(table, exp.Table) or not isinstance(table.this, exp.OpenRowset):
             return table
 
@@ -160,13 +179,13 @@ class SynapseParser(TSQLParser):
 
             if not table.args.get("alias"):
                 alias = self._parse_table_alias(
-                    alias_tokens=kwargs.get("alias_tokens") or self.TABLE_ALIAS_TOKENS
+                    alias_tokens=alias_tokens or self.TABLE_ALIAS_TOKENS
                 )
                 if alias:
                     table.set("alias", alias)
 
-            if kwargs.get("joins"):
-                for join in self._parse_joins(alias_tokens=kwargs.get("alias_tokens")):
+            if joins:
+                for join in self._parse_joins(alias_tokens=alias_tokens):
                     table.append("joins", join)
 
         return table
